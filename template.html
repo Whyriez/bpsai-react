@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BPS Gorontalo AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              "bps-blue": "#003366",
+              "bps-gold": "#FFD700",
+              "bps-light-blue": "#E3F2FD",
+            },
+            fontFamily: {
+              inter: ["Inter", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .message-animation {
+        animation: slideUp 0.3s ease-out;
+      }
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .hover-lift {
+        transition: transform 0.2s ease;
+      }
+      .hover-lift:hover {
+        transform: translateY(-2px);
+      }
+      .sidebar-item {
+        transition: all 0.3s ease;
+      }
+      .sidebar-item:hover {
+        background-color: #f8fafc;
+        border-left: 4px solid #003366;
+      }
+      .chat-scroll {
+        scroll-behavior: smooth;
+      }
+      .dark .bg-white {
+        background-color: #1f2937;
+      }
+      .dark .text-gray-900 {
+        color: #f9fafb;
+      }
+      .dark .text-gray-600 {
+        color: #d1d5db;
+      }
+      .dark .bg-gray-50 {
+        background-color: #374151;
+      }
+      .dark .border-gray-200 {
+        border-color: #4b5563;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 font-inter transition-colors duration-300">
+    <div class="flex h-screen">
+      <!-- Sidebar -->
+      <div
+        id="sidebar"
+        class="w-64 bg-white border-r border-gray-200 shadow-sm transition-all duration-300 hidden lg:block"
+      >
+        <div class="p-6 border-b border-gray-200">
+          <div class="flex items-center space-x-3">
+            <div
+              class="w-10 h-10 bg-bps-blue rounded-lg flex items-center justify-center"
+            >
+              <svg
+                class="w-6 h-6 text-white"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-sm font-semibold text-gray-900">BPS Gorontalo</h2>
+              <p class="text-xs text-gray-500">AI Assistant</p>
+            </div>
+          </div>
+        </div>
+
+        <nav class="p-4 space-y-2">
+          <div class="sidebar-item p-3 rounded-lg cursor-pointer">
+            <div class="flex items-center space-x-3">
+              <svg
+                class="w-5 h-5 text-bps-blue"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+              </svg>
+              <span class="text-sm font-medium text-gray-700">Home</span>
+            </div>
+          </div>
+
+          <div class="sidebar-item p-3 rounded-lg cursor-pointer">
+            <div class="flex items-center space-x-3">
+              <svg
+                class="w-5 h-5 text-bps-blue"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"
+                />
+              </svg>
+              <span class="text-sm font-medium text-gray-700"
+                >Economic Statistics</span
+              >
+            </div>
+          </div>
+
+          <div class="sidebar-item p-3 rounded-lg cursor-pointer">
+            <div class="flex items-center space-x-3">
+              <svg
+                class="w-5 h-5 text-bps-blue"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16c-.8 0-1.54.37-2.01 1l-2.54 3.51L9.5 11H4v2h4.5l2.95 1.48L13.1 18H16z"
+                />
+              </svg>
+              <span class="text-sm font-medium text-gray-700"
+                >Social Statistics</span
+              >
+            </div>
+          </div>
+
+          <div class="sidebar-item p-3 rounded-lg cursor-pointer">
+            <div class="flex items-center space-x-3">
+              <svg
+                class="w-5 h-5 text-bps-blue"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                />
+              </svg>
+              <span class="text-sm font-medium text-gray-700"
+                >Demographics</span
+              >
+            </div>
+          </div>
+
+          <div class="sidebar-item p-3 rounded-lg cursor-pointer">
+            <div class="flex items-center space-x-3">
+              <svg
+                class="w-5 h-5 text-bps-blue"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                />
+              </svg>
+              <span class="text-sm font-medium text-gray-700">About BPS</span>
+            </div>
+          </div>
+        </nav>
+      </div>
+
+      <!-- Main Content -->
+      <div class="flex-1 flex flex-col min-w-0">
+        <!-- Header -->
+        <header class="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+              <button
+                id="sidebarToggle"
+                class="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+              >
+                <svg
+                  class="w-6 h-6 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+
+              <div class="flex items-center space-x-3">
+                <div
+                  class="w-12 h-12 bg-gradient-to-br from-bps-blue to-blue-700 rounded-xl flex items-center justify-center shadow-lg"
+                >
+                  <svg
+                    class="w-7 h-7 text-white"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h1 class="text-xl font-bold text-gray-900">
+                    BPS Gorontalo AI Assistant
+                  </h1>
+                  <p class="text-sm text-gray-500">
+                    Statistics Indonesia - Gorontalo Province
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+              <button
+                id="themeToggle"
+                class="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <svg
+                  id="lightIcon"
+                  class="w-5 h-5 text-gray-600"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm0-10c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z"
+                  />
+                  <path
+                    d="M12 2l1.09 2.09L15 3l-1.91 1.09L12 6l-1.09-1.91L9 3l2.09 1.09L12 2zm0 16l1.09 2.09L15 21l-1.91 1.09L12 24l-1.09-1.91L9 21l2.09 1.09L12 18z"
+                  />
+                </svg>
+                <svg
+                  id="darkIcon"
+                  class="w-5 h-5 text-gray-600 hidden"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <!-- Chat Area -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <div
+            id="chatContainer"
+            class="flex-1 overflow-y-auto p-6 space-y-6 chat-scroll"
+            style="min-width: 0"
+          >
+            <!-- Welcome Message -->
+            <div class="flex items-start space-x-3 message-animation">
+              <div
+                class="w-10 h-10 bg-gradient-to-br from-bps-blue to-blue-700 rounded-full flex items-center justify-center shadow-lg"
+              >
+                <svg
+                  class="w-5 h-5 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7.01 5 5 7.01 5 9.5S7.01 14 9.5 14 14 11.99 14 9.5 11.99 5 9.5 5z"
+                  />
+                </svg>
+              </div>
+              <div
+                class="bg-white rounded-2xl rounded-tl-md p-4 shadow-sm border border-gray-100 flex-1 min-w-0 hover-lift"
+              >
+                <p class="text-gray-800 leading-relaxed">
+                  Selamat datang di <strong>BPS Gorontalo AI Assistant</strong>!
+                  👋
+                </p>
+                <p class="text-gray-600 mt-2 text-sm">
+                  Saya siap membantu Anda dengan informasi statistik Provinsi
+                  Gorontalo. Silakan tanyakan tentang data ekonomi, sosial,
+                  demografi, atau topik statistik lainnya.
+                </p>
+
+                <!-- Sample Statistics Card -->
+                <div
+                  class="mt-4 bg-gradient-to-r from-bps-light-blue to-blue-50 rounded-xl p-4 border border-blue-100 min-w-0"
+                >
+                  <h4 class="font-semibold text-bps-blue mb-3">
+                    Economic Indicators - Gorontalo Province 2023
+                  </h4>
+
+                  <!-- Responsive scrollable table -->
+                  <div class="overflow-x-auto -mx-4 px-4">
+                    <table
+                      class="w-full text-sm bg-white rounded-lg shadow-sm"
+                      style="min-width: 600px"
+                    >
+                      <thead>
+                        <tr class="border-b border-blue-200 bg-blue-50">
+                          <th
+                            class="text-left py-3 px-4 font-semibold text-bps-blue whitespace-nowrap"
+                          >
+                            Indicator
+                          </th>
+                          <th
+                            class="text-right py-3 px-4 font-semibold text-bps-blue whitespace-nowrap"
+                          >
+                            2022
+                          </th>
+                          <th
+                            class="text-right py-3 px-4 font-semibold text-bps-blue whitespace-nowrap"
+                          >
+                            2023
+                          </th>
+                          <th
+                            class="text-right py-3 px-4 font-semibold text-bps-blue whitespace-nowrap"
+                          >
+                            Growth
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        >
+                          <td
+                            class="py-3 px-4 font-medium text-gray-800 whitespace-nowrap"
+                          >
+                            GDP (Billion IDR)
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-gray-700 whitespace-nowrap"
+                          >
+                            45.2
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-gray-700 whitespace-nowrap"
+                          >
+                            47.8
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-green-600 font-semibold whitespace-nowrap"
+                          >
+                            +5.8%
+                          </td>
+                        </tr>
+                        <tr
+                          class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        >
+                          <td
+                            class="py-3 px-4 font-medium text-gray-800 whitespace-nowrap"
+                          >
+                            Population
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-gray-700 whitespace-nowrap"
+                          >
+                            1.15M
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-gray-700 whitespace-nowrap"
+                          >
+                            1.17M
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-green-600 font-semibold whitespace-nowrap"
+                          >
+                            +1.7%
+                          </td>
+                        </tr>
+                        <tr
+                          class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        >
+                          <td
+                            class="py-3 px-4 font-medium text-gray-800 whitespace-nowrap"
+                          >
+                            Unemployment Rate
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-gray-700 whitespace-nowrap"
+                          >
+                            4.2%
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-gray-700 whitespace-nowrap"
+                          >
+                            3.8%
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-green-600 font-semibold whitespace-nowrap"
+                          >
+                            -0.4%
+                          </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition-colors">
+                          <td
+                            class="py-3 px-4 font-medium text-gray-800 whitespace-nowrap"
+                          >
+                            Inflation Rate
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-gray-700 whitespace-nowrap"
+                          >
+                            3.1%
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-gray-700 whitespace-nowrap"
+                          >
+                            2.9%
+                          </td>
+                          <td
+                            class="py-3 px-4 text-right text-green-600 font-semibold whitespace-nowrap"
+                          >
+                            -0.2%
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <!-- Mobile scroll hint -->
+                  <div class="sm:hidden mt-2 text-xs text-gray-500 text-center">
+                    ← Swipe to see more data →
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Input Section -->
+          <div class="border-t border-gray-200 bg-white p-6">
+            <div class="max-w-4xl mx-auto">
+              <div class="flex items-end space-x-3">
+                <div class="flex-1 relative">
+                  <input
+                    type="text"
+                    id="messageInput"
+                    placeholder="Type your question about statistics…"
+                    class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-bps-blue focus:border-transparent resize-none transition-all duration-200"
+                  />
+                  <button
+                    class="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg
+                      class="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <button
+                  id="sendButton"
+                  class="bg-bps-blue hover:bg-blue-800 text-white p-3 rounded-2xl transition-all duration-200 hover-lift shadow-lg"
+                >
+                  <svg
+                    class="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div
+                class="flex items-center justify-center mt-3 space-x-4 text-xs text-gray-500"
+              >
+                <span
+                  >💡 Try asking: "Population growth in Gorontalo" or "Economic
+                  indicators 2023"</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Theme Toggle
+      const themeToggle = document.getElementById("themeToggle");
+      const lightIcon = document.getElementById("lightIcon");
+      const darkIcon = document.getElementById("darkIcon");
+      const html = document.documentElement;
+
+      themeToggle.addEventListener("click", () => {
+        html.classList.toggle("dark");
+        lightIcon.classList.toggle("hidden");
+        darkIcon.classList.toggle("hidden");
+      });
+
+      // Sidebar Toggle
+      const sidebarToggle = document.getElementById("sidebarToggle");
+      const sidebar = document.getElementById("sidebar");
+
+      sidebarToggle.addEventListener("click", () => {
+        sidebar.classList.toggle("hidden");
+      });
+
+      // Chat Functionality
+      const messageInput = document.getElementById("messageInput");
+      const sendButton = document.getElementById("sendButton");
+      const chatContainer = document.getElementById("chatContainer");
+
+      function addMessage(content, isUser = false) {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `flex items-start space-x-3 message-animation ${
+          isUser ? "flex-row-reverse space-x-reverse" : ""
+        }`;
+
+        const avatarDiv = document.createElement("div");
+        if (isUser) {
+          avatarDiv.className =
+            "w-10 h-10 bg-bps-light-blue rounded-full flex items-center justify-center shadow-lg";
+          avatarDiv.innerHTML = `
+                    <svg class="w-5 h-5 text-bps-blue" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                `;
+        } else {
+          avatarDiv.className =
+            "w-10 h-10 bg-gradient-to-br from-bps-blue to-blue-700 rounded-full flex items-center justify-center shadow-lg";
+          avatarDiv.innerHTML = `
+                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7.01 5 5 7.01 5 9.5S7.01 14 9.5 14 14 11.99 14 9.5 11.99 5 9.5 5z"/>
+                    </svg>
+                `;
+        }
+
+        const contentDiv = document.createElement("div");
+        contentDiv.className = `${
+          isUser
+            ? "bg-bps-light-blue border-blue-200"
+            : "bg-white border-gray-100"
+        } rounded-2xl ${
+          isUser ? "rounded-tr-md" : "rounded-tl-md"
+        } p-4 shadow-sm border ${
+          isUser ? "max-w-2xl" : "flex-1 min-w-0"
+        } hover-lift`;
+        contentDiv.innerHTML = `<p class="text-gray-800 leading-relaxed">${content}</p>`;
+
+        messageDiv.appendChild(avatarDiv);
+        messageDiv.appendChild(contentDiv);
+        chatContainer.appendChild(messageDiv);
+
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+
+      function sendMessage() {
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        addMessage(message, true);
+        messageInput.value = "";
+
+        // Simulate AI response
+        setTimeout(() => {
+          const responses = [
+            "Berdasarkan data BPS Gorontalo terbaru, saya dapat memberikan informasi statistik yang Anda butuhkan. Apakah ada aspek khusus yang ingin Anda ketahui lebih detail?",
+            "Data statistik Provinsi Gorontalo menunjukkan tren positif dalam beberapa indikator. Saya dapat membantu menganalisis data spesifik yang Anda perlukan.",
+            "Terima kasih atas pertanyaan Anda. Sebagai asisten AI BPS Gorontalo, saya siap memberikan informasi statistik yang akurat dan terkini.",
+          ];
+          const randomResponse =
+            responses[Math.floor(Math.random() * responses.length)];
+          addMessage(randomResponse);
+        }, 1000);
+      }
+
+      sendButton.addEventListener("click", sendMessage);
+      messageInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          sendMessage();
+        }
+      });
+
+      // Sidebar item interactions
+      document.querySelectorAll(".sidebar-item").forEach((item) => {
+        item.addEventListener("click", () => {
+          const text = item.querySelector("span").textContent;
+          addMessage(`Tell me about ${text}`, true);
+
+          setTimeout(() => {
+            addMessage(
+              `Here's information about ${text} from BPS Gorontalo. This section contains detailed statistical data and analysis relevant to your inquiry.`
+            );
+          }, 1000);
+        });
+      });
+    </script>
+  </body>
+</html>
