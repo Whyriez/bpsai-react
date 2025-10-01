@@ -48,74 +48,6 @@ const ThinkingIndicator = () => (
   </div>
 );
 
-// Komponen tautan dengan logika parsing URL
-const LinkCard = ({ href, children }) => {
-  let displayHost = "";
-  let linkTitle = children;
-
-  try {
-    const url = new URL(href);
-    displayHost = url.hostname.replace(/^www\./, "");
-
-    // Coba "mengakal" judul dari path URL jika children adalah URL mentah
-    if (String(children).startsWith("http")) {
-      const pathParts = url.pathname.split("/");
-      const lastPart = pathParts[pathParts.length - 1];
-
-      if (lastPart) {
-        // Hapus ekstensi file seperti .html, .php, dll.
-        const slug = lastPart.split(".")[0];
-        // Ganti tanda hubung dengan spasi dan kapitalisasi
-        const formattedTitle = slug
-          .replace(/--/g, ", ")
-          .replace(/-/g, " ")
-          .replace(/\b\w/g, (l) => l.toUpperCase());
-        linkTitle = formattedTitle || "Sumber Tautan";
-      } else {
-        linkTitle = "Sumber Tautan";
-      }
-    }
-  } catch (e) {
-    displayHost = href;
-    console.log(e);
-  }
-
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-3 my-2 p-3 no-underline bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700/50"
-    >
-      {/* Icon Container */}
-      <div className="flex-shrink-0 grid place-items-center w-8 h-8 rounded-md bg-gray-200 dark:bg-gray-700">
-        <svg
-          className="w-4 h-4 text-gray-500 dark:text-gray-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-          />
-        </svg>
-      </div>
-      {/* Text Content */}
-      <div className="flex-1 min-w-0">
-        <span className="block font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">
-          {linkTitle}
-        </span>
-        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-          {displayHost}
-        </p>
-      </div>
-    </a>
-  );
-};
-
 const TableContext = createContext({ isInsideTable: false });
 
 const MarkdownLink = ({ href, children }) => {
@@ -145,7 +77,7 @@ const StyledLink = ({ href, children }) => {
       target="_blank"
       rel="noopener noreferrer"
       title={href}
-      className="inline-flex items-center gap-1.5 no-underline bg-blue-50 dark:bg-gray-800/50 px-1.5 py-0.5 rounded-md text-sm text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-gray-700 hover:bg-blue-100 dark:hover:bg-gray-700 transition-colors"
+      className="inline-flex w-full items-center gap-1.5 no-underline bg-blue-50 dark:bg-gray-800/50 px-1.5 py-0.5 rounded-md text-sm text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-gray-700 hover:bg-blue-100 dark:hover:bg-gray-700 transition-colors"
     >
       <img
         src={faviconUrl}
@@ -222,7 +154,11 @@ const ChatMessage = ({ message, isLoading, onFeedback }) => {
               components={{
                 table: ({ ...props }) => (
                   <div className="overflow-x-auto my-0 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <table {...props} className="text-sm" />
+                    <table
+                      {...props}
+                      className="text-sm"
+                      style={{ margin: 0, marginTop: 0, marginBottom: 0 }}
+                    />
                   </div>
                 ),
                 thead: ({ ...props }) => (
