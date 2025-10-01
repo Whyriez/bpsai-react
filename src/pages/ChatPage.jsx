@@ -13,6 +13,13 @@ function ChatPage() {
   const [theme, setTheme] = useState("light");
   const { conversationId } = useParams();
 
+  // State untuk Thinking Status
+  const [thinkingStatus, setThinkingStatus] = useState({ 
+    isThinking: false, 
+    status: '', 
+    detail: '' 
+  });
+
   // State untuk Modal Feedback
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [currentFeedback, setCurrentFeedback] = useState({ messageId: null, type: null });
@@ -23,7 +30,6 @@ function ChatPage() {
   // Refs untuk mengelola streaming & pembatalan
   const aiResponseAccumulator = useRef("");
   const abortControllerRef = useRef(null);
-  const renderTimeout = useRef(null);
   
   // Efek untuk mengubah tema (dark mode)
   useEffect(() => {
@@ -85,24 +91,36 @@ function ChatPage() {
 
     setMessages((prev) => [...prev, userMessage, aiPlaceholder]);
     setIsLoading(true);
+    setThinkingStatus({ isThinking: true, status: '', detail: '' });
 
     try {
       await streamChat(
         { prompt, conversation_id: conversationId },
         (chunk) => {
-           try {
+          try {
             const lines = chunk.split('\n');
             lines.forEach(line => {
               if (line.startsWith('data: ')) {
                 const jsonStr = line.substring(6);
                 if (jsonStr && jsonStr !== '[DONE]') {
                   const data = JSON.parse(jsonStr);
-                  // Sesuaikan dengan struktur JSON respons streaming Anda
-                  const textChunk = data?.text || data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                  aiResponseAccumulator.current += textChunk;
                   
-                  if (renderTimeout.current) clearTimeout(renderTimeout.current);
-                  renderTimeout.current = setTimeout(updateLastAiMessage, 100);
+                  // Handle thinking status
+                  if (data.thinking === true) {
+                    setThinkingStatus({
+                      isThinking: true,
+                      status: data.status || '',
+                      detail: data.detail || ''
+                    });
+                  } else if (data.thinking === false) {
+                    // Thinking selesai, mulai streaming text
+                    setThinkingStatus({ isThinking: false, status: '', detail: '' });
+                  } else if (data.text) {
+                    // Handle text chunks
+                    const textChunk = data.text;
+                    aiResponseAccumulator.current += textChunk;
+                    updateLastAiMessage();
+                  }
                 }
               }
             });
@@ -113,15 +131,14 @@ function ChatPage() {
         (error) => {
           aiResponseAccumulator.current = `Terjadi kesalahan: ${error.message}`;
           updateLastAiMessage();
+          setThinkingStatus({ isThinking: false, status: '', detail: '' });
         },
         abortControllerRef.current.signal
       );
     } finally {
-        if (renderTimeout.current) clearTimeout(renderTimeout.current);
-        // Panggil update terakhir untuk memastikan semua data ter-render
-        updateLastAiMessage(); 
-        setIsLoading(false);
-        abortControllerRef.current = null;
+      setIsLoading(false);
+      setThinkingStatus({ isThinking: false, status: '', detail: '' });
+      abortControllerRef.current = null;
     }
   };
 
@@ -129,6 +146,7 @@ function ChatPage() {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setIsLoading(false);
+      setThinkingStatus({ isThinking: false, status: '', detail: '' });
       // Hapus placeholder AI yang kosong
       setMessages(prev => prev.filter(msg => !(msg.sender === 'ai' && msg.text === '')));
     }
@@ -136,7 +154,6 @@ function ChatPage() {
   
   const openFeedbackModal = (messageId, feedbackType) => {
     setCurrentFeedback({ messageId, type: feedbackType });
-    console.log(messageId)
     setIsFeedbackModalOpen(true);
   };
   
@@ -149,19 +166,19 @@ function ChatPage() {
     if (!messageId || !type) return;
 
     try {
-        await submitFeedback({
-            prompt_log_id: messageId,
-            type: type,
-            comment: comment || null,
-            session_id: conversationId,
-        });
-        setAlert({ show: true, message: "Terima kasih! Feedback Anda telah berhasil dikirim.", type: "success" });
-        setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, feedbackGiven: type } : msg));
+      await submitFeedback({
+        prompt_log_id: messageId,
+        type: type,
+        comment: comment || null,
+        session_id: conversationId,
+      });
+      setAlert({ show: true, message: "Terima kasih! Feedback Anda telah berhasil dikirim.", type: "success" });
+      setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, feedbackGiven: type } : msg));
     } catch (error) {
-        console.error("Gagal mengirim feedback:", error);
-        setAlert({ show: true, message: "Gagal mengirim feedback. Silakan coba lagi.", type: "error" });
+      console.error("Gagal mengirim feedback:", error);
+      setAlert({ show: true, message: "Gagal mengirim feedback. Silakan coba lagi.", type: "error" });
     } finally {
-        closeFeedbackModal();
+      closeFeedbackModal();
     }
   };
 
@@ -176,12 +193,21 @@ function ChatPage() {
         <div className="flex-1 flex flex-col min-w-0">
           <Header onThemeToggle={handleToggleTheme} theme={theme} />
           <main className="flex-1 flex flex-col overflow-hidden">
-            <ChatContainer messages={messages} isLoading={isLoading} onFeedback={openFeedbackModal} />
-            <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} onCancel={handleCancelGeneration} />
+            <ChatContainer 
+              messages={messages} 
+              isLoading={isLoading}
+              thinkingStatus={thinkingStatus}
+              onFeedback={openFeedbackModal} 
+            />
+            <ChatInput 
+              onSendMessage={handleSendMessage} 
+              isLoading={isLoading} 
+              onCancel={handleCancelGeneration} 
+            />
           </main>
         </div>
       </div>
-       <FeedbackModal
+      <FeedbackModal
         isOpen={isFeedbackModalOpen}
         onClose={closeFeedbackModal}
         onSubmit={handleFeedbackSubmit}
