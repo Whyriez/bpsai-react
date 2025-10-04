@@ -1,5 +1,6 @@
 // src/services/chatApi.js
-const API_BASE_URL = 'http://127.0.0.1:5001'; // Ganti dengan URL API Anda
+const API_BASE_URL = 'https://10.75.0.13';
+// const API_BASE_URL = 'http://127.0.0.1:5001';
 
 /**
  * Mengambil riwayat percakapan dari server.
