@@ -13,6 +13,15 @@ function ChatPage() {
   const [theme, setTheme] = useState("light");
   const { conversationId } = useParams();
 
+  // State untuk pagination
+  const [pagination, setPagination] = useState({
+    page: 1,
+    perPage: 10,
+    total: 0,
+    hasMore: false,
+    isLoadingMore: false
+  });
+
   // State untuk Thinking Status
   const [thinkingStatus, setThinkingStatus] = useState({ 
     isThinking: false, 
@@ -41,12 +50,30 @@ function ChatPage() {
     const loadHistory = async () => {
       if (!conversationId) return;
       try {
-        const history = await getHistory(conversationId);
-        const formattedHistory = history.flatMap((item) => [
-          { id: `user-${item.prompt_log_id}`, sender: "user", text: item.user_prompt },
-          { id: item.prompt_log_id, sender: "ai", text: item.model_response, feedbackGiven: item.has_feedback },
+        const response = await getHistory(conversationId, 1, pagination.perPage);
+        const formattedHistory = response.messages.flatMap((item) => [
+          { 
+            id: `user-${item.prompt_log_id}`, 
+            sender: "user", 
+            text: item.user_prompt,
+            timestamp: Date.now()
+          },
+          { 
+            id: item.prompt_log_id, 
+            sender: "ai", 
+            text: item.model_response, 
+            feedbackGiven: item.has_feedback,
+            timestamp: Date.now() + 1
+          },
         ]);
+        
         setMessages(formattedHistory);
+        setPagination(prev => ({
+          ...prev,
+          page: 1,
+          total: response.pagination.total,
+          hasMore: response.pagination.has_more
+        }));
       } catch (error) {
         console.error("Gagal memuat riwayat:", error);
         setAlert({ show: true, message: "Gagal memuat riwayat chat.", type: "error" });
@@ -54,7 +81,46 @@ function ChatPage() {
     };
     loadHistory();
   }, [conversationId]);
-  
+
+  // Fungsi untuk load more messages
+  const loadMoreMessages = useCallback(async () => {
+    if (pagination.isLoadingMore || !pagination.hasMore) return;
+    
+    try {
+      setPagination(prev => ({ ...prev, isLoadingMore: true }));
+      const nextPage = pagination.page + 1;
+      const response = await getHistory(conversationId, nextPage, pagination.perPage);
+      
+      const newMessages = response.messages.flatMap((item) => [
+        { 
+          id: `user-${item.prompt_log_id}`, 
+          sender: "user", 
+          text: item.user_prompt,
+          timestamp: Date.now() - 10000 // Timestamp lebih lama
+        },
+        { 
+          id: item.prompt_log_id, 
+          sender: "ai", 
+          text: item.model_response, 
+          feedbackGiven: item.has_feedback,
+          timestamp: Date.now() - 9000
+        },
+      ]);
+
+      setMessages(prev => [...newMessages, ...prev]); // Tambah di awal
+      setPagination(prev => ({
+        ...prev,
+        page: nextPage,
+        total: response.pagination.total,
+        hasMore: response.pagination.has_more,
+        isLoadingMore: false
+      }));
+    } catch (error) {
+      console.error("Gagal memuat lebih banyak pesan:", error);
+      setPagination(prev => ({ ...prev, isLoadingMore: false }));
+    }
+  }, [conversationId, pagination]);
+
   // Efek untuk menampilkan dan menyembunyikan notifikasi
   useEffect(() => {
     if (alert.show) {
@@ -86,8 +152,18 @@ function ChatPage() {
     abortControllerRef.current = new AbortController();
     aiResponseAccumulator.current = "";
 
-    const userMessage = { id: crypto.randomUUID(), text: prompt, sender: "user" };
-    const aiPlaceholder = { id: crypto.randomUUID(), text: "", sender: "ai" };
+    const userMessage = { 
+      id: crypto.randomUUID(), 
+      text: prompt, 
+      sender: "user",
+      timestamp: Date.now()
+    };
+    const aiPlaceholder = { 
+      id: crypto.randomUUID(), 
+      text: "", 
+      sender: "ai",
+      timestamp: Date.now() + 1
+    };
 
     setMessages((prev) => [...prev, userMessage, aiPlaceholder]);
     setIsLoading(true);
@@ -197,7 +273,9 @@ function ChatPage() {
               messages={messages} 
               isLoading={isLoading}
               thinkingStatus={thinkingStatus}
-              onFeedback={openFeedbackModal} 
+              onFeedback={openFeedbackModal}
+              onLoadMore={loadMoreMessages}
+              pagination={pagination}
             />
             <ChatInput 
               onSendMessage={handleSendMessage} 

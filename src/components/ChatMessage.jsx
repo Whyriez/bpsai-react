@@ -1,6 +1,13 @@
-import React, { createContext, useContext } from "react";
+import React, {
+  createContext,
+  useContext,
+  memo,
+  useRef,
+  useState,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "https://esm.sh/remark-gfm";
+import { exportToExcel } from "../services/chatApi";
 
 // SVG Icons for Feedback
 const ThumbsUpIcon = ({ selected }) => (
@@ -18,10 +25,11 @@ const ThumbsUpIcon = ({ selected }) => (
     />
   </svg>
 );
+
 const ThumbsDownIcon = ({ selected }) => (
   <svg
     className={`w-5 h-5 transform -scale-y-100 ${
-      selected ? "text-red-500" : "text-gray-400" 
+      selected ? "text-red-500" : "text-gray-400"
     }`}
     fill={selected ? "currentColor" : "none"}
     viewBox="0 0 24 24"
@@ -36,7 +44,7 @@ const ThumbsDownIcon = ({ selected }) => (
   </svg>
 );
 
-const ThinkingIndicator = () => (
+const ThinkingIndicator = memo(() => (
   <div className="flex items-center space-x-1.5 p-2">
     <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse"></div>
     <div
@@ -48,20 +56,20 @@ const ThinkingIndicator = () => (
       style={{ animationDelay: "0.4s" }}
     ></div>
   </div>
-);
+));
 
 const TableContext = createContext({ isInsideTable: false });
 
-const MarkdownLink = ({ href, children }) => {
+const MarkdownLink = memo(({ href, children }) => {
   const { isInsideTable } = useContext(TableContext);
 
   if (isInsideTable) {
     return <TableLink href={href} />;
   }
   return <StyledLink href={href}>{children}</StyledLink>;
-};
+});
 
-const StyledLink = ({ href, children }) => {
+const StyledLink = memo(({ href, children }) => {
   let displayHost = href;
   try {
     const url = new URL(href);
@@ -79,12 +87,12 @@ const StyledLink = ({ href, children }) => {
       target="_blank"
       rel="noopener noreferrer"
       title={href}
-      className="inline-flex w-full items-center gap-1.5 no-underline bg-blue-50 dark:bg-gray-800/50 px-1.5 py-0.5 rounded-md text-sm text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-gray-700 hover:bg-blue-100 dark:hover:bg-gray-700 transition-colors"
+      className="inline-flex break-words w-full items-center gap-1.5 no-underline bg-blue-50 dark:bg-gray-800/50 px-1.5 py-0.5 rounded-md text-sm text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-gray-700 hover:bg-blue-100 dark:hover:bg-gray-700 transition-colors"
     >
       <img
         src={faviconUrl}
         alt="favicon"
-        className="w-3.5 h-3.5"
+        className="w-3.5 h-3.5 flex-shrink-0"
         onError={(e) => {
           e.currentTarget.style.display = "none";
         }}
@@ -92,9 +100,9 @@ const StyledLink = ({ href, children }) => {
       <span className="font-medium">{children}</span>
     </a>
   );
-};
+});
 
-const ExternalLinkIcon = () => (
+const ExternalLinkIcon = memo(() => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 20 20"
@@ -104,9 +112,9 @@ const ExternalLinkIcon = () => (
     <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
     <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
   </svg>
-);
+));
 
-const TableLink = ({ href }) => (
+const TableLink = memo(({ href }) => (
   <a
     href={href}
     target="_blank"
@@ -116,9 +124,153 @@ const TableLink = ({ href }) => (
     <span>Sumber</span>
     <ExternalLinkIcon />
   </a>
-);
+));
 
-const ChatMessage = ({ message, isLoading, onFeedback }) => {
+const ExportButton = memo(({ onClick, isLoading }) => (
+  <button
+    onClick={onClick}
+    disabled={isLoading}
+    className="flex items-center gap-2 px-2 py-1 text-sm bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-900 transition-all disabled:opacity-50 "
+    title="Ekspor ke Excel"
+  >
+    {isLoading ? (
+      <>
+        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        Mengekspor...
+      </>
+    ) : (
+      <>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="w-4 h-4"
+        >
+          <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+          <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+        </svg>
+        <span>Unduh Excel</span>
+      </>
+    )}
+  </button>
+));
+
+const ExportableTable = ({ children }) => {
+  const tableContainerRef = useRef(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState(null);
+
+  const handleExport = async () => {
+    if (!tableContainerRef.current) return;
+    setIsExporting(true);
+    setExportError(null);
+
+    try {
+      const tableElement = tableContainerRef.current.querySelector("table");
+      if (!tableElement) throw new Error("Elemen tabel tidak ditemukan.");
+
+      // --- LOGIKA DETEKSI JUDUL YANG DIPERBAIKI ---
+      let title = "data_ekspor"; // Nama default
+
+      // Cari elemen container pesan
+      const messageContainer = tableContainerRef.current.closest('[class*="rounded-2xl"]');
+      
+      if (messageContainer) {
+        // Cari semua elemen heading (h1-h6) atau elemen teks kuat sebelum tabel
+        const possibleTitleElements = messageContainer.querySelectorAll('h1, h2, h3, h4, h5, h6, strong');
+        
+        for (let element of possibleTitleElements) {
+          // Pastikan elemen ini berada sebelum tabel dalam struktur yang sama
+          if (messageContainer.contains(element) && element.textContent.trim()) {
+            title = element.textContent.trim();
+            
+            // Prioritaskan heading, jika menemukan heading langsung break
+            if (element.tagName.match(/^H[1-6]$/i)) {
+              break;
+            }
+          }
+        }
+      }
+
+      // Fallback: cari elemen teks sebelum tabel
+      if (title === "data_ekspor") {
+        let prevElement = tableContainerRef.current.previousElementSibling;
+        while (prevElement) {
+          const textContent = prevElement.textContent?.trim();
+          if (textContent && textContent.length > 0 && textContent.length < 100) {
+            title = textContent;
+            break;
+          }
+          prevElement = prevElement.previousElementSibling;
+        }
+      }
+
+      console.log("Detected title for export:", title); // Debug log
+
+      const headers = Array.from(tableElement.querySelectorAll("thead th"))
+        .map((th) => th.innerText.trim())
+        .join(" | ");
+
+      const separator = Array.from(tableElement.querySelectorAll("thead th"))
+        .map(() => "---")
+        .join(" | ");
+
+      const rows = Array.from(tableElement.querySelectorAll("tbody tr")).map(
+        (tr) =>
+          Array.from(tr.querySelectorAll("td"))
+            .map((td) => td.innerText.trim())
+            .join(" | ")
+      );
+
+      const markdownString = `| ${headers} |\n| ${separator} |\n${rows
+        .map((r) => `| ${r} |`)
+        .join("\n")}`;
+
+      const blob = await exportToExcel(markdownString, title);
+
+      // Trigger download di browser
+      const safeFilename = title
+        .replace(/[^a-z0-9\u00C0-\u024F\s]/gi, "_") // Izinkan karakter internasional
+        .replace(/\s+/g, "_")
+        .toLowerCase()
+        .substring(0, 100); // Batasi panjang
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${safeFilename}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export failed:", error);
+      setExportError(error.message);
+      setTimeout(() => setExportError(null), 3000);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <div className="relative my-4" ref={tableContainerRef}>
+      {/* Tombol dipindahkan ke atas tabel */}
+      <div className="flex justify-end mb-2">
+        <ExportButton onClick={handleExport} isLoading={isExporting} />
+      </div>
+      
+      {children}
+      
+      {exportError && (
+        <div className="text-xs text-red-500 bg-red-100 dark:bg-red-900/50 p-2 rounded mt-2">
+          Error: {exportError}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ChatMessage = memo(({ message, isLoading, onFeedback }) => {
   const isUser = message.sender === "user";
   const isAI = message.sender === "ai";
 
@@ -155,13 +307,15 @@ const ChatMessage = ({ message, isLoading, onFeedback }) => {
               remarkPlugins={[remarkGfm]}
               components={{
                 table: ({ ...props }) => (
-                  <div className="overflow-x-auto my-0 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <table
-                      {...props}
-                      className="text-sm"
-                      style={{ margin: 0, marginTop: 0, marginBottom: 0 }}
-                    />
-                  </div>
+                  <ExportableTable>
+                    <div className="overflow-x-auto my-0 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <table
+                        {...props}
+                        className="text-sm"
+                        style={{ margin: 0, marginTop: 0, marginBottom: 0 }}
+                      />
+                    </div>
+                  </ExportableTable>
                 ),
                 thead: ({ ...props }) => (
                   <thead {...props} className="bg-gray-50 dark:bg-gray-800" />
@@ -199,33 +353,13 @@ const ChatMessage = ({ message, isLoading, onFeedback }) => {
           </div>
         )}
       </div>
-      {/* {isAI && !isThinking && !isLoading && (
-        <div className="flex items-center gap-1.5 self-start mt-2">
-            <button
-              onClick={() => onFeedback(message.id, "positive")}
-              disabled={hasFeedback}
-              className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
-            >
-                <ThumbsUpIcon selected={message.feedbackGiven === 'positive'} />
-            </button>
-            <button
-              onClick={() => onFeedback(message.id, "negative")}
-              disabled={hasFeedback}
-              className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
-            >
-                <ThumbsDownIcon selected={message.feedbackGiven === 'negative'} />
-            </button>
-        </div>
-      )} */}
+
       {isAI && !isThinking && (
         <div className="mt-2 sm:mt-0">
           <div className="flex items-center gap-1.5">
             {hasFeedback ? (
               <>
                 <div className="flex flex-col items-center text-center">
-                  {/* {feedbackGiven === "positive" && <ThumbsUpSolidIcon />}
-                  {feedbackGiven === "negative" && <ThumbsDownSolidIcon />} */}
-
                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Feedback dikirim!
                   </div>
@@ -254,6 +388,6 @@ const ChatMessage = ({ message, isLoading, onFeedback }) => {
       )}
     </div>
   );
-};
+});
 
 export default ChatMessage;

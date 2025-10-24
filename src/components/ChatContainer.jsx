@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import ChatMessage from "./ChatMessage.jsx";
 
 const WelcomeMessage = () => (
@@ -182,28 +182,139 @@ const ThinkingIndicator = ({ status, detail }) => {
   );
 };
 
-const ChatContainer = ({ messages, isLoading, thinkingStatus, onFeedback }) => {
-  const endOfMessagesRef = useRef(null);
+const LoadMoreButton = ({ onLoadMore, isLoading }) => (
+  <div className="flex justify-center py-4">
+    <button
+      onClick={onLoadMore}
+      disabled={isLoading}
+      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+    >
+      {isLoading ? "Memuat..." : "Muat Pesan Sebelumnya"}
+    </button>
+  </div>
+);
 
-  useEffect(() => {
-    const scrollToBottom = () => {
-      endOfMessagesRef.current?.scrollIntoView({
-        behavior: "smooth",
+const ChatContainer = ({ messages, isLoading, thinkingStatus, onFeedback, onLoadMore, pagination }) => {
+  const endOfMessagesRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const [isAutoScroll, setIsAutoScroll] = useState(true);
+  const lastMessageCountRef = useRef(messages.length);
+  const previousScrollHeightRef = useRef(0);
+  const userScrolledAwayRef = useRef(false); // Track jika user manual scroll
+
+  // Fungsi untuk scroll ke bawah
+  const scrollToBottom = useCallback((behavior = 'smooth') => {
+    if (endOfMessagesRef.current) {
+      endOfMessagesRef.current.scrollIntoView({
+        behavior,
         block: "end",
       });
-    };
+    }
+  }, []);
 
-    const timer = setTimeout(scrollToBottom, 50);
-    return () => clearTimeout(timer);
-  }, [messages, isLoading, thinkingStatus]);
+  // Fungsi untuk cek apakah user di posisi bawah
+  const isUserAtBottom = useCallback(() => {
+    if (!scrollContainerRef.current) return false;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const scrollBottom = scrollHeight - scrollTop - clientHeight;
+    return scrollBottom < 100; // Threshold 100px dari bawah
+  }, []);
+
+  // Handle scroll event - deteksi posisi user
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return;
+    
+    const container = scrollContainerRef.current;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const scrollBottom = scrollHeight - scrollTop - clientHeight;
+    
+    // Deteksi apakah user di dekat bagian bawah
+    const nearBottom = scrollBottom < 100;
+    
+    // Jika user scroll ke atas (tidak di bawah), tandai sebagai "scrolled away"
+    if (!nearBottom) {
+      userScrolledAwayRef.current = true;
+      setIsAutoScroll(false);
+    } else {
+      // Jika user kembali ke bawah, reset flag dan aktifkan auto-scroll
+      userScrolledAwayRef.current = false;
+      setIsAutoScroll(true);
+    }
+    
+    // Load more messages ketika scroll di paling atas
+    if (scrollTop === 0 && pagination.hasMore && !pagination.isLoadingMore) {
+      onLoadMore();
+    }
+  }, [pagination.hasMore, pagination.isLoadingMore, onLoadMore]);
+
+  // Effect untuk scroll otomatis saat ada pesan baru atau sedang streaming
+  useEffect(() => {
+    const hasNewMessage = messages.length > lastMessageCountRef.current;
+    const currentScrollHeight = scrollContainerRef.current?.scrollHeight || 0;
+    const isLoadingMore = pagination.isLoadingMore;
+
+    // Jika sedang load more (scroll ke atas), pertahankan posisi scroll
+    if (isLoadingMore && previousScrollHeightRef.current > 0) {
+      const newScrollHeight = currentScrollHeight;
+      const scrollDiff = newScrollHeight - previousScrollHeightRef.current;
+      if (scrollContainerRef.current && scrollDiff > 0) {
+        scrollContainerRef.current.scrollTop = scrollDiff;
+      }
+    }
+    // Auto-scroll ke bawah HANYA jika:
+    // 1. Auto-scroll aktif DAN
+    // 2. User TIDAK sedang scroll away DAN
+    // 3. (Ada pesan baru ATAU sedang streaming/thinking)
+    else if (isAutoScroll && !userScrolledAwayRef.current) {
+      if (hasNewMessage || isLoading || thinkingStatus.isThinking) {
+        scrollToBottom();
+      }
+    }
+
+    lastMessageCountRef.current = messages.length;
+    previousScrollHeightRef.current = currentScrollHeight;
+  }, [messages, isLoading, thinkingStatus, isAutoScroll, scrollToBottom, pagination.isLoadingMore]);
+
+  // Effect untuk mengaktifkan kembali auto-scroll saat streaming selesai dan user di bawah
+  useEffect(() => {
+    if (!isLoading && !thinkingStatus.isThinking) {
+      // Reset flag saat streaming selesai
+      if (isUserAtBottom()) {
+        userScrolledAwayRef.current = false;
+        setIsAutoScroll(true);
+      }
+    }
+  }, [isLoading, thinkingStatus.isThinking, isUserAtBottom]);
+
+  // Effect untuk reset flag saat streaming baru dimulai (jika user sudah di bawah)
+  useEffect(() => {
+    if ((isLoading || thinkingStatus.isThinking) && isUserAtBottom()) {
+      // Reset flag jika streaming dimulai dan user sudah di posisi bawah
+      userScrolledAwayRef.current = false;
+      setIsAutoScroll(true);
+      scrollToBottom('smooth');
+    }
+  }, [isLoading, thinkingStatus.isThinking, scrollToBottom, isUserAtBottom]);
 
   return (
     <div
+      ref={scrollContainerRef}
       className="flex-1 overflow-y-auto p-4 sm:p-6 chat-scroll"
       style={{ minWidth: 0 }}
+      onScroll={handleScroll}
     >
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Load More Button */}
+        {pagination.hasMore && (
+          <LoadMoreButton 
+            onLoadMore={onLoadMore} 
+            isLoading={pagination.isLoadingMore} 
+          />
+        )}
+
+        {/* Messages */}
         {messages.length === 0 && <WelcomeMessage />}
+        
         {messages.map((msg, index) => {
           const isLastAiMessageLoading =
             isLoading && msg.sender === "ai" && index === messages.length - 1;
@@ -216,12 +327,16 @@ const ChatContainer = ({ messages, isLoading, thinkingStatus, onFeedback }) => {
             />
           );
         })}
+
+        {/* Thinking Indicator */}
         {thinkingStatus.isThinking && (
           <ThinkingIndicator
             status={thinkingStatus.status}
             detail={thinkingStatus.detail}
           />
         )}
+
+        {/* Scroll anchor */}
         <div ref={endOfMessagesRef} />
       </div>
     </div>
