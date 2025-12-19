@@ -6,7 +6,7 @@ body {
   font-family: "Inter", sans-serif;
 }
 .message-animation {
-  animation: slideUp 0.3s ease-out;
+  animation: fadeIn 0.4s ease-out;
 }
 @keyframes slideUp {
   from {
@@ -26,4 +26,69 @@ body {
 }
 .chat-scroll {
   scroll-behavior: smooth;
+}
+
+/* Thinking */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.message-animation .prose > *:not(.no-fade) {
+  animation: fadeIn 0.3s ease-out;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+.streaming-cursor::after {
+  content: "▋";
+  animation: blink 1s step-end infinite;
+  display: inline-block;
+  margin-left: 2px;
+  color: #3b82f6;
+}
+.dark .streaming-cursor::after {
+  color: #60a5fa;
+}
+
+/* === TAMBAHAN ATURAN CSS BARU UNTUK TAUTAN DI DALAM TABEL === */
+
+/* Targetkan .custom-link HANYA jika berada di dalam <td> */
+td .custom-link {
+  /* Ubah menjadi link teks biasa */
+  display: inline;
+  background-color: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: inherit; /* Ikuti ukuran font tabel */
+  color: inherit; /* Ikuti warna teks tabel */
+}
+
+/* Sembunyikan favicon saat di dalam tabel */
+td .custom-link .link-favicon {
+  display: none !important;
+}
+
+/* Atur warna teks link secara eksplisit di dalam tabel */
+td .custom-link .link-text {
+  color: #2563eb; /* Tailwind blue-600 */
+}
+.dark td .custom-link .link-text {
+  color: #60a5fa; /* Tailwind blue-400 */
+}
+
+/* Efek hover yang lebih simpel untuk link di tabel */
+td .custom-link:hover {
+  background-color: transparent !important;
+  text-decoration-thickness: 2px;
 }

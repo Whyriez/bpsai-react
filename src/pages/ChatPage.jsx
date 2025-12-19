@@ -13,6 +13,22 @@ function ChatPage() {
   const [theme, setTheme] = useState("light");
   const { conversationId } = useParams();
 
+  // State untuk pagination
+  const [pagination, setPagination] = useState({
+    page: 1,
+    perPage: 10,
+    total: 0,
+    hasMore: false,
+    isLoadingMore: false
+  });
+
+  // State untuk Thinking Status
+  const [thinkingStatus, setThinkingStatus] = useState({ 
+    isThinking: false, 
+    status: '', 
+    detail: '' 
+  });
+
   // State untuk Modal Feedback
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [currentFeedback, setCurrentFeedback] = useState({ messageId: null, type: null });
@@ -23,7 +39,6 @@ function ChatPage() {
   // Refs untuk mengelola streaming & pembatalan
   const aiResponseAccumulator = useRef("");
   const abortControllerRef = useRef(null);
-  const renderTimeout = useRef(null);
   
   // Efek untuk mengubah tema (dark mode)
   useEffect(() => {
@@ -35,12 +50,30 @@ function ChatPage() {
     const loadHistory = async () => {
       if (!conversationId) return;
       try {
-        const history = await getHistory(conversationId);
-        const formattedHistory = history.flatMap((item) => [
-          { id: `user-${item.prompt_log_id}`, sender: "user", text: item.user_prompt },
-          { id: item.prompt_log_id, sender: "ai", text: item.model_response, feedbackGiven: item.has_feedback },
+        const response = await getHistory(conversationId, 1, pagination.perPage);
+        const formattedHistory = response.messages.flatMap((item) => [
+          { 
+            id: `user-${item.prompt_log_id}`, 
+            sender: "user", 
+            text: item.user_prompt,
+            timestamp: Date.now()
+          },
+          { 
+            id: item.prompt_log_id, 
+            sender: "ai", 
+            text: item.model_response, 
+            feedbackGiven: item.has_feedback,
+            timestamp: Date.now() + 1
+          },
         ]);
+        
         setMessages(formattedHistory);
+        setPagination(prev => ({
+          ...prev,
+          page: 1,
+          total: response.pagination.total,
+          hasMore: response.pagination.has_more
+        }));
       } catch (error) {
         console.error("Gagal memuat riwayat:", error);
         setAlert({ show: true, message: "Gagal memuat riwayat chat.", type: "error" });
@@ -48,7 +81,46 @@ function ChatPage() {
     };
     loadHistory();
   }, [conversationId]);
-  
+
+  // Fungsi untuk load more messages
+  const loadMoreMessages = useCallback(async () => {
+    if (pagination.isLoadingMore || !pagination.hasMore) return;
+    
+    try {
+      setPagination(prev => ({ ...prev, isLoadingMore: true }));
+      const nextPage = pagination.page + 1;
+      const response = await getHistory(conversationId, nextPage, pagination.perPage);
+      
+      const newMessages = response.messages.flatMap((item) => [
+        { 
+          id: `user-${item.prompt_log_id}`, 
+          sender: "user", 
+          text: item.user_prompt,
+          timestamp: Date.now() - 10000 // Timestamp lebih lama
+        },
+        { 
+          id: item.prompt_log_id, 
+          sender: "ai", 
+          text: item.model_response, 
+          feedbackGiven: item.has_feedback,
+          timestamp: Date.now() - 9000
+        },
+      ]);
+
+      setMessages(prev => [...newMessages, ...prev]); // Tambah di awal
+      setPagination(prev => ({
+        ...prev,
+        page: nextPage,
+        total: response.pagination.total,
+        hasMore: response.pagination.has_more,
+        isLoadingMore: false
+      }));
+    } catch (error) {
+      console.error("Gagal memuat lebih banyak pesan:", error);
+      setPagination(prev => ({ ...prev, isLoadingMore: false }));
+    }
+  }, [conversationId, pagination]);
+
   // Efek untuk menampilkan dan menyembunyikan notifikasi
   useEffect(() => {
     if (alert.show) {
@@ -80,29 +152,51 @@ function ChatPage() {
     abortControllerRef.current = new AbortController();
     aiResponseAccumulator.current = "";
 
-    const userMessage = { id: crypto.randomUUID(), text: prompt, sender: "user" };
-    const aiPlaceholder = { id: crypto.randomUUID(), text: "", sender: "ai" };
+    const userMessage = { 
+      id: crypto.randomUUID(), 
+      text: prompt, 
+      sender: "user",
+      timestamp: Date.now()
+    };
+    const aiPlaceholder = { 
+      id: crypto.randomUUID(), 
+      text: "", 
+      sender: "ai",
+      timestamp: Date.now() + 1
+    };
 
     setMessages((prev) => [...prev, userMessage, aiPlaceholder]);
     setIsLoading(true);
+    setThinkingStatus({ isThinking: true, status: '', detail: '' });
 
     try {
       await streamChat(
         { prompt, conversation_id: conversationId },
         (chunk) => {
-           try {
+          try {
             const lines = chunk.split('\n');
             lines.forEach(line => {
               if (line.startsWith('data: ')) {
                 const jsonStr = line.substring(6);
                 if (jsonStr && jsonStr !== '[DONE]') {
                   const data = JSON.parse(jsonStr);
-                  // Sesuaikan dengan struktur JSON respons streaming Anda
-                  const textChunk = data?.text || data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                  aiResponseAccumulator.current += textChunk;
                   
-                  if (renderTimeout.current) clearTimeout(renderTimeout.current);
-                  renderTimeout.current = setTimeout(updateLastAiMessage, 100);
+                  // Handle thinking status
+                  if (data.thinking === true) {
+                    setThinkingStatus({
+                      isThinking: true,
+                      status: data.status || '',
+                      detail: data.detail || ''
+                    });
+                  } else if (data.thinking === false) {
+                    // Thinking selesai, mulai streaming text
+                    setThinkingStatus({ isThinking: false, status: '', detail: '' });
+                  } else if (data.text) {
+                    // Handle text chunks
+                    const textChunk = data.text;
+                    aiResponseAccumulator.current += textChunk;
+                    updateLastAiMessage();
+                  }
                 }
               }
             });
@@ -113,15 +207,14 @@ function ChatPage() {
         (error) => {
           aiResponseAccumulator.current = `Terjadi kesalahan: ${error.message}`;
           updateLastAiMessage();
+          setThinkingStatus({ isThinking: false, status: '', detail: '' });
         },
         abortControllerRef.current.signal
       );
     } finally {
-        if (renderTimeout.current) clearTimeout(renderTimeout.current);
-        // Panggil update terakhir untuk memastikan semua data ter-render
-        updateLastAiMessage(); 
-        setIsLoading(false);
-        abortControllerRef.current = null;
+      setIsLoading(false);
+      setThinkingStatus({ isThinking: false, status: '', detail: '' });
+      abortControllerRef.current = null;
     }
   };
 
@@ -129,6 +222,7 @@ function ChatPage() {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setIsLoading(false);
+      setThinkingStatus({ isThinking: false, status: '', detail: '' });
       // Hapus placeholder AI yang kosong
       setMessages(prev => prev.filter(msg => !(msg.sender === 'ai' && msg.text === '')));
     }
@@ -136,7 +230,6 @@ function ChatPage() {
   
   const openFeedbackModal = (messageId, feedbackType) => {
     setCurrentFeedback({ messageId, type: feedbackType });
-    console.log(messageId)
     setIsFeedbackModalOpen(true);
   };
   
@@ -149,19 +242,19 @@ function ChatPage() {
     if (!messageId || !type) return;
 
     try {
-        await submitFeedback({
-            prompt_log_id: messageId,
-            type: type,
-            comment: comment || null,
-            session_id: conversationId,
-        });
-        setAlert({ show: true, message: "Terima kasih! Feedback Anda telah berhasil dikirim.", type: "success" });
-        setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, feedbackGiven: type } : msg));
+      await submitFeedback({
+        prompt_log_id: messageId,
+        type: type,
+        comment: comment || null,
+        session_id: conversationId,
+      });
+      setAlert({ show: true, message: "Terima kasih! Feedback Anda telah berhasil dikirim.", type: "success" });
+      setMessages(prev => prev.map(msg => msg.id === messageId ? { ...msg, feedbackGiven: type } : msg));
     } catch (error) {
-        console.error("Gagal mengirim feedback:", error);
-        setAlert({ show: true, message: "Gagal mengirim feedback. Silakan coba lagi.", type: "error" });
+      console.error("Gagal mengirim feedback:", error);
+      setAlert({ show: true, message: "Gagal mengirim feedback. Silakan coba lagi.", type: "error" });
     } finally {
-        closeFeedbackModal();
+      closeFeedbackModal();
     }
   };
 
@@ -176,12 +269,23 @@ function ChatPage() {
         <div className="flex-1 flex flex-col min-w-0">
           <Header onThemeToggle={handleToggleTheme} theme={theme} />
           <main className="flex-1 flex flex-col overflow-hidden">
-            <ChatContainer messages={messages} isLoading={isLoading} onFeedback={openFeedbackModal} />
-            <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} onCancel={handleCancelGeneration} />
+            <ChatContainer 
+              messages={messages} 
+              isLoading={isLoading}
+              thinkingStatus={thinkingStatus}
+              onFeedback={openFeedbackModal}
+              onLoadMore={loadMoreMessages}
+              pagination={pagination}
+            />
+            <ChatInput 
+              onSendMessage={handleSendMessage} 
+              isLoading={isLoading} 
+              onCancel={handleCancelGeneration} 
+            />
           </main>
         </div>
       </div>
-       <FeedbackModal
+      <FeedbackModal
         isOpen={isFeedbackModalOpen}
         onClose={closeFeedbackModal}
         onSubmit={handleFeedbackSubmit}

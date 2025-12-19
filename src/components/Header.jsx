@@ -1,23 +1,27 @@
 import React from "react";
 
 const Header = ({ onThemeToggle, theme }) => (
-  <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 shadow-sm">
+  <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-2 shadow-sm">
     <div className="flex items-center justify-between">
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-900 to-blue-700 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold">BPS</span>
-              </div>
-              <div>
-                <h1 className="text-lg md:text-xl font-semibold text-gray-900">
-                  📊 BPS Gorontalo
-                </h1>
-                <p className="hidden md:block text-sm text-gray-500">
-                  Badan Pusat Statistik Indonesia - Provinsi Gorontalo
-                </p>
-              </div>
+            <div className="w-15 h-15 bg-gradient-to-br  rounded-lg flex items-center justify-center">
+              <img
+                src="/sigap-app/bpslogo.png"
+                alt="Logo SIGAP BPS Gorontalo"
+                className="h-full w-full object-contain"
+              />
             </div>
+            <div>
+              <h1 className="text-lg md:text-xl font-semibold text-gray-900">
+                SIGAP BPS
+              </h1>
+              <p className="hidden md:block text-sm text-gray-500">
+                Sistem Informasi Generatif Asisten Pengetahuan BPS Provinsi Gorontalo
+              </p>
+            </div>
+          </div>
         </div>
       </div>
       <div className="flex items-center space-x-3">
